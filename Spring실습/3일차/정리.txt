@@ -1,0 +1,18 @@
+만드는순서
+설정파일 만들고 맵퍼만들고 DAO만들고
+
+
+id가 함수명
+resultclass가 type(받는 type)
+parameterClass는 메소드에 넘겨줄 인자
+
+interface에는 public안써도 자동으로 public 인식한다.
+
+
+받기만 할때는 두번째 인수 ㅇ벗다.
+
+
+마이바티스는 dao 임플없다.자동으로 만들어줌
+dao패키지를 복사하여 resorces에 똑같은 패키지명 복사해서 만들어준다
+dao폴더안에 매퍼 설정해준다.
+namespace는 인터페이스 이름과 일치시켜야한다.
