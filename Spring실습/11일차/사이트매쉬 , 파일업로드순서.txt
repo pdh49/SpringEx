@@ -1,0 +1,386 @@
+사이트매쉬 적용순서
+1)form.xml에 디펜던시 등록 
+2)WEB.XML에 필터등록
+3)화면에 등록할 XML파일을 만든다.(webapp/resources안에 사이트매쉬 html파일만듬)
+
+
+파일업로드 순서
+1.pom.xml에  디펜던시 추가하기
+
+		<!-- 파일 업로드 추가 시작 -->
+		<dependency>
+			<groupId>commons-fileupload</groupId>
+			<artifactId>commons-fileupload</artifactId>
+			<version>1.4</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+			<version>2.6</version>
+		</dependency>
+
+
+
+2.web.xml에 인코딩 필터등록
+
+	<!-- 인코딩 필터 등록 -->
+	<filter>
+		<filter-name>encodingFilter</filter-name>
+		<filter-class>org.springframework.web.filter.CharacterEncodingFilter</filter-class>
+		<init-param>
+			<param-name>encoding</param-name>
+			<param-value>UTF-8</param-value>
+		</init-param>
+		<init-param>
+			<param-name>forceEncoding</param-name>
+			<param-value>true</param-value>
+		</init-param>
+	</filter>
+	<filter-mapping>
+		<filter-name>encodingFilter</filter-name>
+		<url-pattern>/*</url-pattern>
+	</filter-mapping>
+
+
+
+3.webapp/upload 업로드될 폴더 만들기
+
+
+4.servlet-context.xml에 업로드 빈등록
+
+	<resources mapping="/webjars/**" location="/webjars/" />
+	<!--  업로드 관련 빈 등록 시작 -->
+	<!-- 1.업로드될 폴더를 리소스에 추가한다. -->
+	<resources mapping="/upload/**" location="/upload/" />
+	<!-- 2.업로드 경로를 빈으로 등록 -->
+	<beans:bean id ="uploadPath" class="java.lang.String">
+		<beans:constructor-arg value="upload"/>
+	</beans:bean>
+	<!-- 3.업로드를 당담할 객체를 등록 -->
+	<beans:bean id="multipartResolver" class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+		<beans:property name="maxUploadSize" value="20480000"></beans:property>
+		<beans:property name="maxInMemorySize" value="10240000"></beans:property>
+		<beans:property name="defaultEncoding" value="UTF-8"></beans:property>
+	</beans:bean>
+	
+	<!-- 4.다운로드를 담당할 객체를 등록 -->
+	<beans:bean class="org.springframework.web.servlet.view.BeanNameViewResolver">
+			<beans:property name="order" value="0"></beans:property>
+	</beans:bean>
+	
+	<!-- 5.실제 다운로드를 담당할 클래스를 등록한다. download.jsp을 참조해서 AbstractView를 상속받아 구현 -->
+	
+
+
+	<!--  업로드 관련 빈 등록 종료 -->
+
+
+5.FileDownload 객체만들기(FileDownLoadView.java)
+package kr.human.mvc11;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.OutputStream;
+import java.net.URLEncoder;
+import java.util.Map;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.springframework.util.FileCopyUtils;
+import org.springframework.web.servlet.view.AbstractView;
+
+//다운로드를 책임질 객체
+public class FileDownLoadView extends AbstractView {
+
+	@Override
+	protected void renderMergedOutputModel(Map<String, Object> model, HttpServletRequest request,
+			HttpServletResponse response) throws Exception {
+		// 컨트롤러에서 전달해준 데이터를 받는다.
+		String oFileName = (String) model.get("oFileName"); // 원본 파일의 이름
+		String sFileName = (String) model.get("sFileName"); // 저장 파일의 이름
+		
+		// 읽을 파일 객체
+		@SuppressWarnings("deprecation")
+		File file = new File(request.getRealPath("upload"),sFileName);
+		
+		// 다운로드 처리
+		response.setContentType(getContentType());
+		response.setContentLength((int) file.length());
+		
+		//다운로드할 이름에 공백이나 한글처리를 담당
+		String filename = URLEncoder.encode(oFileName,"UTF-8").replace("\\+","%20"); // 파일이름이 +로 바뀌기 때문에 다시 공백으로 바꿔주기 위해서 %20한다
+	
+		//다운로드할 이름과 타입을 지정해준다. 
+		response.setHeader("Content-Disposition", "attachment; filename=\"" + filename + "\";");
+        response.setHeader("Content-Transfer-Encoding", "binary");
+        
+        //실제 다운로드를 실행한다.
+        OutputStream os = response.getOutputStream();
+        FileInputStream fis = null;
+        
+        try {
+        	fis = new FileInputStream(file);
+        	FileCopyUtils.copy(fis, os);
+        }catch (Exception e) {
+        	e.printStackTrace();
+        }finally {
+			if(fis!=null) fis.close();
+        }
+        os.flush();
+	}
+}
+
+6.servlet-context.xml에 실제 다운로드를 담당할 클래스를 등록
+	<!-- 5.실제 다운로드를 담당할 클래스를 등록한다. download.jsp을 참조해서 AbstractView를 상속받아 구현 -->
+	<beans:bean id="downloadView" class="kr.human.mvc11.FileDownLoadView"></beans:bean>
+	<!--  업로드 관련 빈 등록 종료 -->
+
+7.jsp view파일만들기(main.jsp , uploadForm.jsp)
+ (main.jsp)
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+<%@ page contentType="text/html; charset=UTF-8"%>
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>Home</title>
+</head>
+<body>
+<h1>
+	Hello world!  
+</h1>
+
+<P>  The time on the server is ${serverTime}. </P>
+<a href="uploadForm">1개 업로드하기</a>
+<a href="multiUploadForm">여러개 업로드하기</a>
+</body>
+</html>
+
+
+ (uploadForm.jsp)
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>1개 업로드하기</title>
+</head>
+<body>
+	<!--multipart/form-data 안해주면 이름이 올라가는게 아니라 내용이 올라가기떄문에 해줘야한다.   -->
+	<form action="uploadOk" method="post" enctype="multipart/form-data">
+		<input type ="file" name="file" id="file" required="required"/> <br />
+		<textarea rows="5" cols="50" name="content" id="content" required="required" placeholder="내용입력"></textarea>
+		<<input type="submit" value="업로드하기"/>
+	</form>
+</body>
+</html>
+
+8.컨트롤러 등록
+	@RequestMapping(value="/uploadForm")
+	public String uploadForm() {
+		return "uploadForm";
+	}
+	@RequestMapping(value="/uploadOk" , method=RequestMethod.GET)
+	public String uploadOkGet() {
+		return "redirect:/uploadForm";
+	}
+	@RequestMapping(value="/uploadOk" , method=RequestMethod.POST)
+	public String uploadOkPost(HttpServletRequest request ,MultipartFile file,Model model) {
+		logger.info("uploadOk 호출!!!");
+		
+		//실제 업로드될 폴더의 절대 경로 구하기
+		
+		String realPath = request.getRealPath("upload");
+		
+		//내용 받기
+		String content = request.getParameter("content");
+		
+		//파일을 받아서 저장을 해야 한다.
+		if(file!= null && file.getSize() >0) { // 파일이 존재 한다면
+			try {
+				// 이름 중복처리를 하기 위해 중복되지 않는 이름을 만들어 주어야 한다.
+				String saveFileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
+				//파일 객체를 만들어 저장을 수행해야한다.
+				File saveFile = new File(realPath, saveFileName);
+				//파일 복사
+				FileCopyUtils.copy(file.getBytes(), saveFile);
+				
+				// 파일의 정보를 처리한다.
+				model.addAttribute("saveName",saveFileName);
+				model.addAttribute("originalName",file.getOriginalFilename());
+				model.addAttribute("contentType",file.getContentType());
+				model.addAttribute("fileSize",file.getSize());
+				model.addAttribute("realPath",realPath);
+				model.addAttribute("content",content);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		return "uploadOk";
+
+9. uploadOk.jsp 파일만들기
+
+<%@ page language="java" contentType="text/html; charset=UTF-8"    pageEncoding="UTF-8"%>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>업로드 결과 확인</title>
+<script type="text/javascript">
+	function fileDown(ofile, sfile){
+		location.href='download?of=' + encodeURI(ofile) +'&sf=' + encodeURI(sfile);
+	}
+</script>
+</head>
+<body>
+	<h1>처리된 파일 정보</h1>
+	저장이름 : ${saveName } <br />
+	원본이름 : ${originalName } <br />
+	파일형식 : ${contentType } <br />
+	파일크기 : ${fileSize } <br />
+	저장경로 : ${realPath } <br />
+	내용 : ${content } <br />
+	<hr />
+	<button onclick="fileDown('${originalName }','${saveName }')">다운로드</button>
+	<hr />
+	<button onclick="location.href='${pageContext.request.contextPath}'">홈으로</button>
+</body>
+</html>
+
+10.다운로드 가능하게 컨트롤러 처리하기
+	// 다운로드가 가능하게 하자
+	@RequestMapping(value = "/download")
+	public ModelAndView download(@RequestParam HashMap<String, Object> params, ModelAndView mv) {
+		String oFileName = (String) params.get("of");
+		String sFileName = (String) params.get("sf");
+		mv.setViewName("download");
+		mv.addObject("oFileName", oFileName);
+		mv.addObject("sFileName", sFileName);
+		return mv;
+	}
+
+
+
+@@@@@@@@@@@@@@@@@@@@
+
+멀티 업로드 구현
+1.multiUploadForm.jsp
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>1개 업로드하기</title>
+</head>
+<body>
+	<!--multipart/form-data 안해주면 이름이 올라가는게 아니라 내용이 올라가기떄문에 해줘야한다.   -->
+	<form action="multiUploadOk" method="post" enctype="multipart/form-data">
+		<input type ="file" name="files" id="file1"/> <br />
+		<input type ="file" name="files" id="file2" /> <br />
+		<input type ="file" name="files" id="file3" /> <br />
+		<input type ="file" name="files" id="file4" /> <br />
+		<input type ="file" name="files" id="file5" /> <br />
+		<textarea rows="5" cols="50" name="content" id="content" required="required" placeholder="내용입력"></textarea>
+		<<input type="submit" value="업로드하기"/>
+	</form>
+</body>
+</html>
+
+
+2.컨트롤러구현
+
+
+	////멀티업로드 구현
+	@RequestMapping(value = "/multiUploadForm")
+	public String multiUploadForm() {
+		return "multiUploadForm";
+	}
+	
+	@RequestMapping(value = "/multiUploadOk", method = RequestMethod.GET)
+	public String multiUploadOkGet() {
+		return "redirect:/multiUploadForm";
+	}
+	
+	@RequestMapping(value = "/multiUploadOk", method = RequestMethod.POST)
+	public String multiUploadOkPost(MultipartHttpServletRequest request, Model model) {
+		logger.info("multiUploadOk 호출!!!!");
+		
+		// 실제 업로드돨 폴더의 절대 경로 구하기
+		@SuppressWarnings("deprecation")
+		String realPath = request.getRealPath("upload");
+		// 내용 받기
+		String content = request.getParameter("content");
+		
+		// 파일을 받아서 저장을 해야 한다.
+		// 모든 파일을 리스트로 받는다.
+		List<MultipartFile> list = request.getFiles("files");
+		
+		// 받은 정보를 저장할 스트링 버퍼를 만들자.
+		StringBuffer sb = new StringBuffer();
+		sb.append("받은 내용 : " + content + "<br>");
+		sb.append("절대 경로 : " + realPath + "<br>");
+		
+		if(list!=null && list.size()>0) { // 파일이 존재 한다면
+			for(MultipartFile file : list) {
+				// 파일 처리하기
+				if(file!=null && file.getSize()>0) {
+					try {
+						// 이름 중복처리를 하기 위해 중복되지 않는 이름을 만들어 주어야 한다.
+						String saveFileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
+						// 파일 객체를 만들어 저장을 수행해야 한다.
+						File saveFile = new File(realPath, saveFileName);
+						// 파일 복사
+						FileCopyUtils.copy(file.getBytes(), saveFile);
+						
+						// 파일의 정보를 처리한다.
+						sb.append("saveName : " + saveFileName + "<br>");
+						sb.append("originalName : " + file.getOriginalFilename() + "<br>");
+						sb.append("contentType : " + file.getContentType() + "<br>");
+						sb.append("fileSize : " + file.getSize() + "<br>");
+						sb.append("<button onclick=\"fileDown('" + file.getOriginalFilename() + "','" + saveFileName + "');\">다운로드</button><br/><hr/>");
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+			model.addAttribute("result", sb.toString());
+			return "multiUploadOk";
+		}
+		return "redirect:/multiUploadForm";
+	}
+
+3.multiUploadOk.jsp 구현하기
+<%@ page language="java" contentType="text/html; charset=UTF-8"    pageEncoding="UTF-8"%>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>업로드 결과 확인</title>
+<script type="text/javascript">
+	function fileDown(ofile, sfile){
+		location.href='download?of=' + encodeURI(ofile) +'&sf=' + encodeURI(sfile);
+	}
+</script>
+</head>
+<body>
+	<hr />
+	${result }
+	<hr />
+	<button onclick="location.href='${pageContext.request.contextPath}'">홈으로</button>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
