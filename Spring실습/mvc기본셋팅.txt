@@ -1,0 +1,13 @@
+MVC기본셋팅하기
+1.pom.xml설정
+2.web.xml 설정
+3.root-context.xml 설정
+4.jdbc.propertie파일 넣기
+5.패키지파일만들고
+6.resources폴더 안에 dao패키지 폴더 패키지명과 똑같이 만들기
+ -->매퍼만들고 dao만들고 서비스 만들고 컨트롤러만들고 jsp만들고 디비연결 잘됬는지 테스트하기
+
+
+7.테이블만들기 db버가서 테이블 작성
+
+8.vo만들고 mapper만들기
