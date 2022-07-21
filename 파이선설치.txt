@@ -1,0 +1,20 @@
+파이선 설치
+
+1.https://www.python.org/ 해당 맞는 버전 다운로드(설치프로그램 실행시 파이썬 PATH추가하기)
+※ "Add Python 버전 to PATH" 옵션을 누락하면 이후 실습할 때 오류가 발생할 수 있다. 만약 Python이 설치되는 경로와 PATH에 대한 사전 지식이 있는 사용자라면 이 옵션을 생략해도 된다.
+
+
+2.개발툴( 비쥬얼코드 or 파이참) 다운로드
+
+-파이참
+https://www.jetbrains.com/ko-kr/pycharm/download/#section=windows
+
+-비쥬얼코드
+https://code.visualstudio.com/download
+
+
+3.파이참 다운로드후 
+file-setting 환경설정 
+1)폰트설정
+2) keymap(이클립스로 설정하기)
+ -  keymap->get more keymaps in settings|plugins 클릭 -> Eclipse keymap 설치
